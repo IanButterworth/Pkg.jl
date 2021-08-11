@@ -724,14 +724,12 @@ const CTRL_C = '\x03'
 const precompile_script = """
     import Pkg
     tmp = Pkg._run_precompilation_script_setup()
-    $CTRL_C
     Pkg.add("TestPkg")
+    Pkg.status()
     Pkg.develop(Pkg.PackageSpec(path="TestPkg.jl"))
-    Pkg.add(Pkg.PackageSpec(path="TestPkg.jl/"))
+    Pkg.add(Pkg.PackageSpec(path="TestPkg.jl"))
     Pkg.REPLMode.try_prompt_pkg_add(Symbol[:notapackage])
-    ] add Te\t\t$CTRL_C
-    ] st
-    $CTRL_C
+    Pkg.REPLMode.completions("rm TestP", lastindex("rm TestP"))
     Pkg._run_precompilation_script_artifact()
     rm(tmp; recursive=true)"""
 
