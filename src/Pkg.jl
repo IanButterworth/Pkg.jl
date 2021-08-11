@@ -729,7 +729,7 @@ const precompile_script = """
     Pkg.develop(Pkg.PackageSpec(path="TestPkg.jl"))
     Pkg.add(Pkg.PackageSpec(path="TestPkg.jl/"))
     Pkg.REPLMode.try_prompt_pkg_add(Symbol[:notapackage])
-    ] add Te\t\t$CTRL_C
+    ] rm Te\t\t$CTRL_C
     ] st
     $CTRL_C
     Pkg._run_precompilation_script_artifact()
