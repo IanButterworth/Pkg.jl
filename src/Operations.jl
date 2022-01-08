@@ -1388,7 +1388,7 @@ function free(ctx::Context, pkgs::Vector{PackageSpec})
     end
 end
 
-function gen_test_code(testfile::String;
+function gen_test_code(testfile::String, pkg_dir::String;
         coverage=false,
         julia_args::Cmd=``,
         test_args::Cmd=``)
@@ -1396,18 +1396,19 @@ function gen_test_code(testfile::String;
         $(Base.load_path_setup_code(false))
         cd($(repr(dirname(testfile))))
         append!(empty!(ARGS), $(repr(test_args.exec)))
+        push!(empty!(Base.explicit_project_dirs), $(repr(pkg_dir)))
         include($(repr(testfile)))
         """
     return ```
         $(Base.julia_cmd())
-        --code-coverage=$(coverage ? "user" : "none")
+        --code-coverage=$(coverage ? "project" : "none")
         --color=$(Base.have_color === nothing ? "auto" : Base.have_color ? "yes" : "no")
         --compiled-modules=$(Bool(Base.JLOptions().use_compiled_modules) ? "yes" : "no")
         --check-bounds=yes
         --depwarn=$(Base.JLOptions().depwarn == 2 ? "error" : "yes")
         --inline=$(Bool(Base.JLOptions().can_inline) ? "yes" : "no")
         --startup-file=$(Base.JLOptions().startupfile == 1 ? "yes" : "no")
-        --track-allocation=$(("none", "user", "all")[Base.JLOptions().malloc_log + 1])
+        --track-allocation=$(("none", "project", "user", "all")[Base.JLOptions().malloc_log + 1])
         --threads=$(Threads.nthreads())
         $(julia_args)
         --eval $(code)
@@ -1660,7 +1661,7 @@ function test(ctx::Context, pkgs::Vector{PackageSpec};
             Pkg._auto_precompile(sandbox_ctx, warn_loaded = false)
             printpkgstyle(ctx.io, :Testing, "Running tests...")
             flush(ctx.io)
-            cmd = gen_test_code(testfile(source_path); coverage=coverage, julia_args=julia_args, test_args=test_args)
+            cmd = gen_test_code(testfile(source_path), source_path; coverage=coverage, julia_args=julia_args, test_args=test_args)
             p = run(pipeline(ignorestatus(cmd), stdout = sandbox_ctx.io))
             if success(p)
                 printpkgstyle(ctx.io, :Testing, pkg.name * " tests passed ")
