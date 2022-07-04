@@ -16,6 +16,10 @@ read_pinned(::Nothing) = false
 read_pinned(pinned::Bool) = pinned
 read_pinned(::Any) = pkgerror("Expected field `pinned` to be a Boolean.")
 
+read_weak(::Nothing) = false
+read_weak(weak::Bool) = weak
+read_weak(::Any) = pkgerror("Expected field `weak` to be a Boolean.")
+
 function safe_SHA1(sha::String)
     try sha = SHA1(sha)
     catch err
@@ -61,7 +65,7 @@ function safe_path(path::String)
     return path
 end
 
-read_deps(::Nothing) = Dict{String, UUID}()
+read_deps(::Nothing) = String[]
 read_deps(deps) = pkgerror("Expected `deps` field to be either a list or a table.")
 function read_deps(deps::AbstractVector)
     ret = String[]
@@ -83,14 +87,15 @@ struct Stage1
     uuid::UUID
     entry::PackageEntry
     deps::Union{Vector{String}, Dict{String,UUID}}
+    weakdeps::Union{Vector{String}, Dict{String,UUID}}
 end
 
-normalize_deps(name, uuid, deps, manifest) = deps
-function normalize_deps(name, uuid, deps::Vector{String}, manifest::Dict{String,Vector{Stage1}})
-    if length(deps) != length(unique(deps))
-        pkgerror("Duplicate entry in `$name=$uuid`'s `deps` field.")
+normalize_deps(name, uuid, deps, weakdeps, manifest) = (deps, weakdeps)
+function normalize_deps(name, uuid, deps::Vector{String}, weakdeps::Vector{String}, manifest::Dict{String,Vector{Stage1}})
+    if (length(deps) + length(weakdeps)) != length(unique(vcat(deps, weakdeps)))
+        pkgerror("Duplicate entry in `$name=$uuid`'s `deps` and/or `weakdeps` field.")
     end
-    final = Dict{String,UUID}()
+    final_deps = Dict{String,UUID}()
     for dep in deps
         infos = get(manifest, dep, nothing)
         if infos === nothing
@@ -100,15 +105,27 @@ function normalize_deps(name, uuid, deps::Vector{String}, manifest::Dict{String,
         # should have used dict format instead of vector format
         length(infos) == 1 || pkgerror("Invalid manifest format. ",
                                        "`$name=$uuid`'s dependency on `$dep` is ambiguous.")
-        final[dep] = infos[1].uuid
+        final_deps[dep] = infos[1].uuid
     end
-    return final
+    final_weakdeps = Dict{String,UUID}()
+    for weakdep in weakdeps
+        infos = get(manifest, weakdep, nothing)
+        if infos === nothing
+            pkgerror("`$name=$uuid` weakly depends on `$dep`, ",
+                     "but no such entry exists in the manifest.")
+        end
+        # should have used dict format instead of vector format
+        length(infos) == 1 || pkgerror("Invalid manifest format. ",
+                                       "`$name=$uuid`'s weak dependency on `$dep` is ambiguous.")
+        final_weakdeps[weakdep] = infos[1].uuid
+    end
+    return final_deps, final_weakdeps
 end
 
 function validate_manifest(julia_version::Union{Nothing,VersionNumber}, manifest_format::VersionNumber, stage1::Dict{String,Vector{Stage1}}, other::Dict{String, Any})
     # expand vector format deps
     for (name, infos) in stage1, info in infos
-        info.entry.deps = normalize_deps(name, info.uuid, info.deps, stage1)
+        info.entry.deps, info.entry.weakdeps = normalize_deps(name, info.uuid, info.deps, info.weakdeps, stage1)
     end
     # invariant: all dependencies are now normalized to Dict{String,UUID}
     deps = Dict{UUID, PackageEntry}()
@@ -147,6 +164,7 @@ function Manifest(raw::Dict, f_or_io::Union{String, IO})::Manifest
             entry.name = name
             uuid = nothing
             deps = nothing
+            weakdeps = nothing
             try
                 entry.pinned      = read_pinned(get(info, "pinned", nothing))
                 uuid              = read_field("uuid",          nothing, info, safe_uuid)::UUID
@@ -157,14 +175,16 @@ function Manifest(raw::Dict, f_or_io::Union{String, IO})::Manifest
                 entry.repo.subdir = read_field("repo-subdir",   nothing, info, identity)
                 entry.tree_hash   = read_field("git-tree-sha1", nothing, info, safe_SHA1)
                 entry.uuid        = uuid
+                entry.weak        = read_weak(get(info, "weak", nothing))
                 deps = read_deps(get(info::Dict, "deps", nothing))
+                weakdeps = read_deps(get(info::Dict, "weakdeps", nothing))
             catch
                 # TODO: Should probably not unconditionally log something
                 @debug "Could not parse manifest entry for `$name`" f_or_io
                 rethrow()
             end
             entry.other = info::Union{Dict,Nothing}
-            stage1[name] = push!(get(stage1, name, Stage1[]), Stage1(uuid, entry, deps))
+            stage1[name] = push!(get(stage1, name, Stage1[]), Stage1(uuid, entry, deps, weakdeps))
         end
         # by this point, all the fields of the `PackageEntry`s have been type casted
         # but we have *not* verified the _graph_ structure of the manifest

@@ -262,7 +262,9 @@ Base.@kwdef mutable struct PackageEntry
     repo::GitRepo = GitRepo()
     tree_hash::Union{Nothing,SHA1} = nothing
     deps::Dict{String,UUID} = Dict{String,UUID}()
+    weakdeps::Dict{String,UUID} = Dict{String,UUID}()
     uuid::Union{Nothing, UUID} = nothing
+    weak::Bool = false
     other::Union{Dict,Nothing} = nothing
 end
 Base.:(==)(t1::PackageEntry, t2::PackageEntry) = t1.name == t2.name &&
@@ -305,6 +307,7 @@ function Base.show(io::IO, pkg::PackageEntry)
     pkg.repo.source !== nothing && push!(f, "url/path"  => "`$(pkg.repo.source)`")
     pkg.repo.rev    !== nothing && push!(f, "rev"       => pkg.repo.rev)
     pkg.repo.subdir !== nothing && push!(f, "subdir"    => pkg.repo.subdir)
+    pkg.weak        !== nothing && push!(f, "weak"      => pkg.weak)
     print(io, "PackageEntry(\n")
     for (field, value) in f
         print(io, "  ", field, " = ", value, "\n")
