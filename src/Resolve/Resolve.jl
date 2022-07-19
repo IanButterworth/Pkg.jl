@@ -14,7 +14,7 @@ export resolve, sanity_check, Graph, pkgID
 ####################
 # Requires / Fixed #
 ####################
-const Requires = Dict{UUID,VersionSpec}
+const Requires = Dict{UUID,DependencySpec}
 
 struct Fixed
     version::VersionNumber

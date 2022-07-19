@@ -63,7 +63,8 @@ end
 function load_direct_deps(env::EnvCache, pkgs::Vector{PackageSpec}=PackageSpec[];
                           preserve::PreserveLevel=PRESERVE_DIRECT)
     pkgs = copy(pkgs)
-    for (name::String, uuid::UUID) in env.project.deps
+    for (deps, isweak) in ((env.project.deps, false), (env.project.weakdeps, true))
+    for (name::String, uuid::UUID) in deps
         findfirst(pkg -> pkg.uuid == uuid, pkgs) === nothing || continue # do not duplicate packages
         entry = manifest_info(env.manifest, uuid)
         push!(pkgs, entry === nothing ?
@@ -74,9 +75,11 @@ function load_direct_deps(env::EnvCache, pkgs::Vector{PackageSpec}=PackageSpec[]
                 path      = entry.path,
                 repo      = entry.repo,
                 pinned    = entry.pinned,
+                weak      = isweak,
                 tree_hash = entry.tree_hash, # TODO should tree_hash be changed too?
                 version   = load_version(entry.version, isfixed(entry), preserve),
               ))
+    end
     end
     return pkgs
 end
@@ -91,6 +94,7 @@ function load_manifest_deps(manifest::Manifest, pkgs::Vector{PackageSpec}=Packag
             name      = entry.name,
             path      = entry.path,
             pinned    = entry.pinned,
+            weak      = false, # if it has a top level entry in the manifest, it's not weak
             repo      = entry.repo,
             tree_hash = entry.tree_hash, # TODO should tree_hash be changed too?
             version   = load_version(entry.version, isfixed(entry), preserve),
@@ -352,7 +356,15 @@ function resolve_versions!(env::EnvCache, registries::Vector{Registry.RegistryIn
     # Unless using the unbounded or historical resolver, always allow stdlibs to update. Helps if the previous resolve
     # happened on a different julia version / commit and the stdlib version in the manifest is not the current stdlib version
     unbind_stdlibs = julia_version === VERSION
-    reqs = Resolve.Requires(pkg.uuid => is_stdlib(pkg.uuid) && unbind_stdlibs ? VersionSpec("*") : VersionSpec(pkg.version) for pkg in pkgs)
+    reqs = Resolve.Requires()
+    for pkg in pkgs
+        weak = something(pkg.weak, false)
+        reqs[pkg.uuid] = if is_stdlib(pkg.uuid) && unbind_stdlibs
+            DependencySpec("*", weak)
+        else
+            DependencySpec(pkg.version, weak)
+        end
+    end
     graph, compat_map = deps_graph(env, registries, names, reqs, fixed, julia_version)
     Resolve.simplify_graph!(graph)
     vers = Resolve.resolve(graph)
@@ -411,10 +423,10 @@ function deps_graph(env::EnvCache, registries::Vector{Registry.RegistryInstance}
     seen = Set{UUID}()
 
     # pkg -> version -> (dependency => compat):
-    all_compat = Dict{UUID,Dict{VersionNumber,Dict{UUID,VersionSpec}}}()
+    all_compat = Dict{UUID,Dict{VersionNumber,Dict{UUID,DependencySpec}}}()
 
     for (fp, fx) in fixed
-        all_compat[fp]   = Dict(fx.version => Dict{UUID,VersionSpec}())
+        all_compat[fp] = Dict(fx.version => Dict{UUID,DependencySpec}())
     end
 
     while true
@@ -423,7 +435,7 @@ function deps_graph(env::EnvCache, registries::Vector{Registry.RegistryInstance}
         for uuid in unseen
             push!(seen, uuid)
             uuid in keys(fixed) && continue
-            all_compat_u = get_or_make!(all_compat,   uuid)
+            all_compat_u = get_or_make!(all_compat, uuid)
 
             uuid_is_stdlib = false
             stdlib_name = ""
@@ -449,7 +461,7 @@ function deps_graph(env::EnvCache, registries::Vector{Registry.RegistryInstance}
                 all_compat_u_vr = get_or_make!(all_compat_u, v)
                 for (_, other_uuid) in proj.deps
                     push!(uuids, other_uuid)
-                    all_compat_u_vr[other_uuid] = VersionSpec()
+                    all_compat_u_vr[other_uuid] = DependencySpec(weak = false)
                 end
             else
                 for reg in registries

@@ -96,6 +96,7 @@ mutable struct PackageSpec
     repo::GitRepo
     path::Union{Nothing,String}
     pinned::Bool
+    weak::Bool
     # used for input only
     url
     rev
@@ -109,11 +110,12 @@ function PackageSpec(; name::Union{Nothing,AbstractString} = nothing,
                        repo::GitRepo = GitRepo(),
                        path::Union{Nothing,AbstractString} = nothing,
                        pinned::Bool = false,
+                       weak::Bool = false,
                        url = nothing,
                        rev = nothing,
                        subdir = nothing)
     uuid = uuid === nothing ? nothing : UUID(uuid)
-    return PackageSpec(name, uuid, version, tree_hash, repo, path, pinned, url, rev, subdir)
+    return PackageSpec(name, uuid, version, tree_hash, repo, path, pinned, weak, url, rev, subdir)
 end
 PackageSpec(name::AbstractString) = PackageSpec(;name=name)
 PackageSpec(name::AbstractString, uuid::UUID) = PackageSpec(;name=name, uuid=uuid)
@@ -123,7 +125,7 @@ PackageSpec(n::AbstractString, u::UUID, v::VersionTypes) = PackageSpec(;name=n, 
 function Base.:(==)(a::PackageSpec, b::PackageSpec)
     return a.name == b.name && a.uuid == b.uuid && a.version == b.version &&
     a.tree_hash == b.tree_hash && a.repo == b.repo && a.path == b.path &&
-    a.pinned == b.pinned
+    a.pinned == b.pinned && a.weak == b.weak
 end
 
 function err_rep(pkg::PackageSpec)
@@ -137,6 +139,7 @@ end
 has_name(pkg::PackageSpec) = pkg.name !== nothing
 has_uuid(pkg::PackageSpec) = pkg.uuid !== nothing
 isresolved(pkg::PackageSpec) = pkg.uuid !== nothing && pkg.name !== nothing
+isweak(pkg::PackageSpec) = pkg.weak
 
 function Base.show(io::IO, pkg::PackageSpec)
     vstr = repr(pkg.version)

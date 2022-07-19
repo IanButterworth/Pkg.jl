@@ -2,7 +2,7 @@
 
 module Versions
 
-export VersionBound, VersionRange, VersionSpec, semver_spec, isjoinable
+export DependencySpec, VersionBound, VersionRange, VersionSpec, semver_spec, isjoinable
 
 ################
 # VersionBound #
@@ -281,6 +281,16 @@ function Base.print(io::IO, s::VersionSpec)
 end
 Base.show(io::IO, s::VersionSpec) = print(io, "VersionSpec(\"", s, "\")")
 
+##################
+# DependencySpec #
+##################
+
+struct DependencySpec
+    versionspec::VersionSpec
+    weak::Bool
+    DependencySpec(v; weak::Bool=false) = new(VersionSpec(v), weak)
+    DependencySpec(; weak::Bool=false) = new(VersionSpec(), weak)
+end
 
 ###################
 # Semver notation #
