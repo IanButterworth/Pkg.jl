@@ -110,8 +110,6 @@ function initialize_uncompressed!(pkg::PkgInfo, versions = keys(pkg.version_info
 
     uncompressed_compat      = uncompress(pkg.compat,      versions)
     uncompressed_deps        = uncompress(pkg.deps,        versions)
-    weak_uncompressed_compat = uncompress(pkg.weak_compat, versions)
-    weak_uncompressed_deps   = uncompress(pkg.weak_deps,   versions)
 
     for v in versions
         vinfo = pkg.version_info[v]
@@ -125,7 +123,22 @@ function initialize_uncompressed!(pkg::PkgInfo, versions = keys(pkg.version_info
             compat[uuid] = vspec === nothing ? VersionSpec() : vspec
         end
         @init! vinfo.uncompressed_compat = compat
+    end
+    return pkg
+end
 
+function initialize_weak_uncompressed!(pkg::PkgInfo, versions = keys(pkg.version_info))
+    # Only valid to call this with existing versions of the package
+    # Remove all versions we have already uncompressed
+    versions = filter!(v -> !isinit(pkg.version_info[v], :weak_uncompressed_compat), collect(versions))
+
+    sort!(versions)
+
+    weak_uncompressed_compat = uncompress(pkg.weak_compat, versions)
+    weak_uncompressed_deps   = uncompress(pkg.weak_deps,   versions)
+
+    for v in versions
+        vinfo = pkg.version_info[v]
         weak_compat = Dict{UUID, VersionSpec}()
         weak_uncompressed_deps_v = weak_uncompressed_deps[v]
         weak_uncompressed_compat_v = weak_uncompressed_compat[v]
@@ -144,7 +157,7 @@ function compat_info(pkg::PkgInfo)
 end
 
 function weak_compat_info(pkg::PkgInfo)
-    initialize_uncompressed!(pkg)
+    initialize_weak_uncompressed!(pkg)
     return Dict(v => info.weak_uncompressed_compat for (v, info) in pkg.version_info)
 end
 

@@ -491,7 +491,11 @@ function deps_graph(env::EnvCache, registries::Vector{Registry.RegistryInstance}
                             end
                         end
 
-                        all_compat_u[v] = compat_info
+                        if haskey(all_compat_u, v)
+                            merge!(all_compat_u[v], compat_info)
+                        else
+                            all_compat_u[v] = compat_info
+                        end
                         union!(uuids, keys(compat_info))
                     end
                     end
