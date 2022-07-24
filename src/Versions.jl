@@ -2,7 +2,7 @@
 
 module Versions
 
-export DependencySpec, VersionBound, VersionRange, VersionSpec, semver_spec, isjoinable
+export VersionBound, VersionRange, VersionSpec, semver_spec, isjoinable
 
 ################
 # VersionBound #
@@ -216,18 +216,25 @@ end
 ###############
 # VersionSpec #
 ###############
-struct VersionSpec
-    ranges::Vector{VersionRange}
-    VersionSpec(r::Vector{<:VersionRange}) = new(union!(r))
-    VersionSpec(vs::VersionSpec) = vs
+mutable struct VersionSpec
+    const ranges::Vector{VersionRange}
+    weak::Bool
+    VersionSpec(r::Vector{<:VersionRange}; weak::Bool=false) = new(union!(r), weak)
+    function VersionSpec(vs::VersionSpec; weak::Union{Nothing,Bool}=nothing)
+        if !isnothing(weak)
+            vs.weak &= weak # a strong dep can't become a weak dep
+        end
+        return vs
+    end
 end
 
-VersionSpec(r::VersionRange) = VersionSpec(VersionRange[r])
-VersionSpec(v::VersionNumber) = VersionSpec(VersionRange(v))
-const _all_versionsspec = VersionSpec(VersionRange())
-VersionSpec() = _all_versionsspec
-VersionSpec(s::AbstractString) = VersionSpec(VersionRange(s))
-VersionSpec(v::AbstractVector) = VersionSpec(map(VersionRange, v))
+VersionSpec(r::VersionRange; weak::Bool=false) = VersionSpec(VersionRange[r]; weak)
+VersionSpec(v::VersionNumber; weak::Bool=false) = VersionSpec(VersionRange(v); weak)
+const _all_versionsrange = VersionRange()
+VersionSpec(; weak::Bool=false) = VersionSpec(_all_versionsrange; weak)
+
+VersionSpec(s::AbstractString; weak::Bool=false) = VersionSpec(VersionRange(s); weak)
+VersionSpec(v::AbstractVector; weak::Bool=false) = VersionSpec(map(VersionRange, v); weak)
 
 # Hot code
 function Base.in(v::VersionNumber, s::VersionSpec)
@@ -279,18 +286,7 @@ function Base.print(io::IO, s::VersionSpec)
     end
     print(io, ']')
 end
-Base.show(io::IO, s::VersionSpec) = print(io, "VersionSpec(\"", s, "\")")
-
-##################
-# DependencySpec #
-##################
-
-struct DependencySpec
-    versionspec::VersionSpec
-    weak::Bool
-    DependencySpec(v; weak::Bool=false) = new(VersionSpec(v), weak)
-    DependencySpec(; weak::Bool=false) = new(VersionSpec(), weak)
-end
+Base.show(io::IO, s::VersionSpec) = print(io, "VersionSpec(\"", s, "\"", s.weak ? ", weak = true" : "", ")")
 
 ###################
 # Semver notation #

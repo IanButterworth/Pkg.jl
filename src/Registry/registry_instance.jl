@@ -131,7 +131,7 @@ function initialize_uncompressed!(pkg::PkgInfo, versions = keys(pkg.version_info
         weak_uncompressed_compat_v = weak_uncompressed_compat[v]
         for (pkg, uuid) in weak_uncompressed_deps_v
             vspec = get(weak_uncompressed_compat_v, pkg, nothing)
-            weak_compat[uuid] = vspec === nothing ? VersionSpec() : vspec
+            weak_compat[uuid] = vspec === nothing ? VersionSpec(weak = true) : vspec
         end
         @init! vinfo.weak_uncompressed_compat = weak_compat
     end
@@ -212,7 +212,7 @@ function init_package_info!(pkg::PkgEntry)
     weak_compat = Dict{VersionRange, Dict{String, VersionSpec}}()
     for (v, data) in weak_compat_data_toml
         vr = VersionRange(v)
-        d = Dict{String, VersionSpec}(dep => VersionSpec(vr_dep) for (dep, vr_dep) in data)
+        d = Dict{String, VersionSpec}(dep => VersionSpec(vr_dep; weak = true) for (dep, vr_dep) in data)
         weak_compat[vr] = d
     end
 

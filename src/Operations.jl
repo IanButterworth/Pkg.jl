@@ -360,9 +360,9 @@ function resolve_versions!(env::EnvCache, registries::Vector{Registry.RegistryIn
     for pkg in pkgs
         weak = something(pkg.weak, false)
         reqs[pkg.uuid] = if is_stdlib(pkg.uuid) && unbind_stdlibs
-            DependencySpec("*", weak)
+            VersionSpec("*"; weak)
         else
-            DependencySpec(pkg.version, weak)
+            VersionSpec(pkg.version; weak)
         end
     end
     graph, compat_map = deps_graph(env, registries, names, reqs, fixed, julia_version)
@@ -423,10 +423,10 @@ function deps_graph(env::EnvCache, registries::Vector{Registry.RegistryInstance}
     seen = Set{UUID}()
 
     # pkg -> version -> (dependency => compat):
-    all_compat = Dict{UUID,Dict{VersionNumber,Dict{UUID,DependencySpec}}}()
+    all_compat = Dict{UUID,Dict{VersionNumber,Dict{UUID,VersionSpec}}}()
 
     for (fp, fx) in fixed
-        all_compat[fp] = Dict(fx.version => Dict{UUID,DependencySpec}())
+        all_compat[fp] = Dict(fx.version => Dict{UUID,VersionSpec}())
     end
 
     while true
@@ -461,14 +461,15 @@ function deps_graph(env::EnvCache, registries::Vector{Registry.RegistryInstance}
                 all_compat_u_vr = get_or_make!(all_compat_u, v)
                 for (_, other_uuid) in proj.deps
                     push!(uuids, other_uuid)
-                    all_compat_u_vr[other_uuid] = DependencySpec(weak = false)
+                    all_compat_u_vr[other_uuid] = VersionSpec(weak = false)
                 end
             else
                 for reg in registries
                     pkg = get(reg, uuid, nothing)
                     pkg === nothing && continue
                     info = Registry.registry_info(pkg)
-                    for (v, compat_info) in Registry.compat_info(info)
+                    for top_compat_info in (Registry.compat_info(info), Registry.weak_compat_info(info))
+                    for (v, compat_info) in top_compat_info
                         # Filter yanked and if we are in offline mode also downloaded packages
                         # TODO, pull this into a function
                         Registry.isyanked(info, v) && continue
@@ -492,6 +493,7 @@ function deps_graph(env::EnvCache, registries::Vector{Registry.RegistryInstance}
 
                         all_compat_u[v] = compat_info
                         union!(uuids, keys(compat_info))
+                    end
                     end
                 end
             end
