@@ -133,7 +133,7 @@ function initialize_uncompressed!(pkg::PkgInfo, versions = keys(pkg.version_info
             vspec = get(weak_uncompressed_compat_v, pkg, nothing)
             weak_compat[uuid] = vspec === nothing ? VersionSpec() : vspec
         end
-        @init! vinfo.weak_uncompressed_compat = compat
+        @init! vinfo.weak_uncompressed_compat = weak_compat
     end
     return pkg
 end
@@ -218,8 +218,8 @@ function init_package_info!(pkg::PkgEntry)
 
     # WeakDeps.toml
     weak_deps_data_toml = custom_isfile(pkg.in_memory_registry, pkg.registry_path, joinpath(pkg.path, "WeakDeps.toml")) ?
-        parsefile(pkg.in_memory_registry, pkg.registry_path, joinpath(pkg.path, "weak_Deps.toml")) : Dict{String, Any}()
-    weak_deps_data_toml = convert(Dict{String, Dict{String, String}}, deps_data_toml)
+        parsefile(pkg.in_memory_registry, pkg.registry_path, joinpath(pkg.path, "WeakDeps.toml")) : Dict{String, Any}()
+    weak_deps_data_toml = convert(Dict{String, Dict{String, String}}, weak_deps_data_toml)
     weak_deps = Dict{VersionRange, Dict{String, UUID}}()
     for (v, data) in weak_deps_data_toml
         vr = VersionRange(v)
