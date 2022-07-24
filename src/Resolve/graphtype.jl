@@ -278,8 +278,10 @@ mutable struct Graph
             req_msk = Dict{Int,BitVector}()
             for (p1, vs) in req
                 pv = pvers[p1]
-                req_msk_p1 = BitVector(undef, spp[p1] - 1)
-                @inbounds for i in 1:spp[p1] - 1
+                # if it's a weak dep, allow it to be uninstalled
+                num_allowed = spp[p1] - (vs.weak ? 0 : 1)
+                req_msk_p1 = BitVector(undef, num_allowed)
+                @inbounds for i in 1:num_allowed
                     req_msk_p1[i] = pv[i] ∈ vs
                 end
                 req_msk[p1] = req_msk_p1
