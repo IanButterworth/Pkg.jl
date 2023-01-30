@@ -683,6 +683,7 @@ function __init__()
     end
     push!(empty!(REPL.install_packages_hooks), REPLMode.try_prompt_pkg_add)
     OFFLINE_MODE[] = get_bool_env("JULIA_PKG_OFFLINE")
+    Base.PKG_PRECOMPILE_HOOK[] = Pkg.precompile
     return nothing
 end
 
@@ -755,8 +756,6 @@ function _auto_precompile(ctx::Types.Context, pkgs::Vector{PackageSpec}=PackageS
         Pkg.precompile(ctx, pkgs; internal_call=true, warn_loaded = warn_loaded, already_instantiated = already_instantiated)
     end
 end
-
-Base.PKG_PRECOMPILE_HOOK[] = Pkg.precompile
 
 using LibGit2: LibGit2
 using Tar: Tar
