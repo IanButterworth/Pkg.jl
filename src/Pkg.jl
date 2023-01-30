@@ -756,6 +756,8 @@ function _auto_precompile(ctx::Types.Context, pkgs::Vector{PackageSpec}=PackageS
     end
 end
 
+Base.PKG_PRECOMPILE_HOOK[] = Pkg.precompile
+
 using LibGit2: LibGit2
 using Tar: Tar
 function _run_precompilation_script_setup()
