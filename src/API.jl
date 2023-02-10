@@ -1354,6 +1354,8 @@ function precompile(ctx::Context, pkgs::Vector{PackageSpec}; internal_call::Bool
     stderr_outputs = Dict{Base.PkgId,String}()
     tasks = Task[]
     Base.LOADING_CACHE[] = Base.LoadingCache()
+    llvm_threadpool = Sys.CPU_THREADS
+    active_jobs = 0
     ## precompilation loop
     for (pkg, deps) in depsmap
         paths = Base.find_all_in_cache_path(pkg)
@@ -1403,9 +1405,12 @@ function precompile(ctx::Context, pkgs::Vector{PackageSpec}; internal_call::Bool
                         return
                     end
                     try
+                        active_jobs += 1
+                        sleep(0.01) # give other jobs a chance to start and get to here
+                        llvm_threads = max(1, ceil(Int, llvm_threadpool / active_jobs))
+                        llvm_threadpool = max(1, llvm_threads)
                         t = @elapsed ret = Logging.with_logger(Logging.NullLogger()) do
-                            # TODO: Explore allowing parallel LLVM image generation. Needs careful load balancing
-                            withenv("JULIA_IMAGE_THREADS" => "1") do
+                            withenv("JULIA_IMAGE_THREADS" => llvm_threads) do
                                 # capture stderr, send stdout to devnull, don't skip loaded modules
                                 Base.compilecache(pkg, sourcepath, iob, devnull, false)
                             end
@@ -1445,6 +1450,8 @@ function precompile(ctx::Context, pkgs::Vector{PackageSpec}; internal_call::Bool
                         end
                         delete!(stderr_buffers, pkg)
                     finally
+                        active_jobs -= 1
+                        llvm_threadpool = min(Sys.CPU_THREADS, llvm_threadpool + llvm_threads) # give threads back
                         Base.release(parallel_limiter)
                     end
                 else
