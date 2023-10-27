@@ -1517,7 +1517,7 @@ function precompile(ctx::Context, pkgs::Vector{PackageSpec}; internal_call::Bool
                         t = @elapsed ret = maybe_cachefile_lock(io, print_lock, fancyprint, pkg, pkgspidlocked) do
                             Logging.with_logger(Logging.NullLogger()) do
                                 # The false here means we ignore loaded modules, so precompile for a fresh session
-                                Base.compilecache(pkg, sourcepath, std_pipe, std_pipe, false)
+                                Base.compilecache(pkg, sourcepath, std_pipe, std_pipe, false; interrupt_event = interrupted_or_done)
                             end
                         end
                         t_str = timing ? string(lpad(round(t * 1e3, digits = 1), 9), " ms") : ""
