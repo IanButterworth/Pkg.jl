@@ -32,6 +32,15 @@ let
         Base.precompile(Tuple{typeof(REPL.LineEdit.complete_line), REPLExt.PkgCompletionProvider, REPL.LineEdit.PromptState})
         Base.precompile(Tuple{typeof(REPL.REPLCompletions.completion_text), REPL.REPLCompletions.PackageCompletion})
         Base.precompile(Tuple{typeof(REPLExt.on_done), REPL.LineEdit.MIState, Base.GenericIOBuffer{Memory{UInt8}}, Bool, REPL.LineEditREPL})
+        Base.precompile(Tuple{typeof(REPL.Terminals.clear_line), REPL.Terminals.TTYTerminal})
+        Base.precompile(Tuple{typeof(Base.print), REPL.Terminals.TTYTerminal, Base.AnnotatedString{String}})
+        Base.precompile(Tuple{typeof(Base.peek), Base.TTY, Type{Char}})
+        Base.precompile(Tuple{typeof(Base.similar), Array{String, 1}})
+        Base.precompile(Tuple{typeof(Base.Iterators.enumerate), Array{String, 1}})
+        Base.precompile(Tuple{typeof(Base.setindex!), Array{String, 1}, String, Int64})
+        Base.precompile(Tuple{typeof(Base.convert), Type{Base.Dict{String, Union{Array{String, 1}, String}}}, Base.Dict{String, Any}})
+        Base.precompile(Tuple{typeof(Core.kwcall), NamedTuple{(:hint,), Tuple{Bool}}, typeof(REPL.LineEdit.complete_line), REPLExt.PkgCompletionProvider, REPL.LineEdit.PromptState})
+        Base.precompile(Tuple{typeof(Base.first), Array{Any, 1}})
     end
 
     if Base.generating_output()
