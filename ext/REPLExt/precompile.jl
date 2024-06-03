@@ -41,6 +41,12 @@ let
         Base.precompile(Tuple{typeof(Base.convert), Type{Base.Dict{String, Union{Array{String, 1}, String}}}, Base.Dict{String, Any}})
         Base.precompile(Tuple{typeof(Core.kwcall), NamedTuple{(:hint,), Tuple{Bool}}, typeof(REPL.LineEdit.complete_line), REPLExt.PkgCompletionProvider, REPL.LineEdit.PromptState})
         Base.precompile(Tuple{typeof(Base.first), Array{Any, 1}})
+
+        # won't stick
+        @show Base.precompile(Tuple{typeof(REPL.Terminals.clear_line), REPL.Terminals.TTYTerminal})
+        @show Base.precompile(Tuple{typeof(Base.print), REPL.Terminals.TTYTerminal, Base.AnnotatedString{String}})
+        @show Base.precompile(Tuple{typeof(Base.peek), Base.TTY, Type{Char}})
+        @show Base.precompile(Tuple{typeof(Base.first), Array{Any, 1}})
     end
 
     if Base.generating_output()
