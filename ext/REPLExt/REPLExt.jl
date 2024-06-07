@@ -321,6 +321,7 @@ function __init__()
         end
     end
     push!(empty!(REPL.install_packages_hooks), try_prompt_pkg_add)
+    println("REPLExt init finished")
 end
 
 include("precompile.jl")
