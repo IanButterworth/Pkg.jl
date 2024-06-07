@@ -309,8 +309,10 @@ end
 
 function __init__()
     if isdefined(Base, :active_repl)
+        println("1")
         repl_init(Base.active_repl)
     else
+        println("2")
         atreplinit() do repl
             if isinteractive() && repl isa REPL.LineEditREPL
                 isdefined(repl, :interface) || (repl.interface = REPL.setup_interface(repl))
