@@ -305,7 +305,7 @@ function try_prompt_pkg_add(pkgs::Vector{Symbol})
     end
 end
 
-
+error()
 
 function __init__()
     if isdefined(Base, :active_repl)
