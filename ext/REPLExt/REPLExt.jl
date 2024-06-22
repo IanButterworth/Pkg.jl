@@ -308,17 +308,19 @@ end
 
 
 function __init__()
-    if isdefined(Base, :active_repl)
-        repl_init(Base.active_repl)
-    else
-        atreplinit() do repl
-            if isinteractive() && repl isa REPL.LineEditREPL
-                isdefined(repl, :interface) || (repl.interface = REPL.setup_interface(repl))
-                repl_init(repl)
+    @lock REPL.LineEdit.repl_mutate_lock begin
+        if isdefined(Base, :active_repl)
+            repl_init(Base.active_repl)
+        else
+            atreplinit() do repl
+                if isinteractive() && repl isa REPL.LineEditREPL
+                    isdefined(repl, :interface) || (repl.interface = REPL.setup_interface(repl))
+                    repl_init(repl)
+                end
             end
         end
+        push!(empty!(REPL.install_packages_hooks), try_prompt_pkg_add)
     end
-    push!(empty!(REPL.install_packages_hooks), try_prompt_pkg_add)
 end
 
 include("precompile.jl")
