@@ -215,7 +215,8 @@ function _completions(input, final, offset, index; hint::Bool)
         if final
             partial = "" # last token is finalized -> no partial
         end
-    catch
+    catch ex
+        @error "completion error" exception=ex,catch_backtrace()
         return String[], 0:-1, false
     end
     # number of tokens which specify the command
