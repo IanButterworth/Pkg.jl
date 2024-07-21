@@ -238,7 +238,7 @@ function _completions(input, final, offset, index; hint::Bool)
         end
     end
 
-    @info "here"
+    @info "here" x
 
     # In the case where the completion function wants to deal with indices, it will return a fully
     # computed completion tuple, just return it
