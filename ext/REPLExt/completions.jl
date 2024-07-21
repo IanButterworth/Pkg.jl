@@ -113,6 +113,7 @@ end
 function complete_installed_packages(options, partial; hint::Bool)
     env = try EnvCache()
     catch err
+        rethrow()
         err isa PkgError || rethrow()
         return String[]
     end
