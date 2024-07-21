@@ -223,8 +223,6 @@ function _completions(input, final, offset, index; hint::Bool)
     command_size = count([statement.super !== nothing, true])
     command_is_focused() = !((word_count == command_size && final) || word_count > command_size)
 
-    @info "here"
-
     if statement.spec === nothing # spec not determined -> complete command
         !command_is_focused() && return String[], 0:-1, false
         x = complete_command(statement, final, word_count == 2)
@@ -239,6 +237,8 @@ function _completions(input, final, offset, index; hint::Bool)
                 complete_argument(statement.spec, statement.options, partial, offset, index; hint)
         end
     end
+
+    @info "here"
 
     # In the case where the completion function wants to deal with indices, it will return a fully
     # computed completion tuple, just return it
