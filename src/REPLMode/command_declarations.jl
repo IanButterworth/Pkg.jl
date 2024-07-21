@@ -3,7 +3,10 @@ const PSA = Pair{Symbol,Any}
 function get_complete_function(f)
     return function(opts, partial, offset, index; hint::Bool)
         m = Base.get_extension(@__MODULE__, :REPLExt)
-        m === nothing && return String[]
+        if m === nothing
+            @error "couldn't find REPLExt extension" @__MODULE__
+            return String[]
+        end
         completions = getglobal(m, f)
         return applicable(completions, opts, partial, offset, index) ?
             completions(opts, partial, offset, index; hint) :
