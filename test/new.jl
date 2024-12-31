@@ -973,6 +973,7 @@ end
             joinpath(tmp, "ShouldPreserveSemver", "Manifest_MbedTLS.toml")
         end
         mv(manifest_to_use, joinpath(tmp, "ShouldPreserveSemver", "Manifest.toml"))
+        Sys.iswindows() && sleep(2) # wait for filesystem to catch up
 
         Pkg.activate(joinpath(tmp, "ShouldPreserveSemver"))
         light_graphs = UUID("093fc24a-ae57-5d10-9952-331d41423f4d")
