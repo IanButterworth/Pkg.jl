@@ -753,36 +753,83 @@ function install_git(
     repo = nothing
     tree = nothing
     # TODO: Consolidate this with some of the repo handling in Types.jl
+
+    @debug "Starting install_git for package '$name' ($uuid)."
     try
+        # Prepare clones directory
         clones_dir = joinpath(depots1(), "clones")
+        @debug "Ensuring clones directory exists at '$clones_dir'."
         ispath(clones_dir) || mkpath(clones_dir)
+
+        # Repository path for the current UUID
         repo_path = joinpath(clones_dir, string(uuid))
+        @debug "Repository path determined: '$repo_path'."
+
+        # Clone the repo as a bare repository if necessary
+        @debug "Cloning/ensuring repository from '$(first(urls))' to '$repo_path' as a bare repo."
         repo = GitTools.ensure_clone(io, repo_path, first(urls); isbare=true,
-                                     header = "[$uuid] $name from $(first(urls))")
+                                     header="[$uuid] $name from $(first(urls))")
+        @debug "Repository successfully cloned/ensured at '$repo_path'."
+
+        # Convert hash to GitHash
         git_hash = LibGit2.GitHash(hash.bytes)
+        @debug "Using GitHash: $(string(hash))"
+
+        # Check that the hash exists in the repository. If not, fetch from additional URLs.
         for url in urls
-            try LibGit2.with(LibGit2.GitObject, repo, git_hash) do g
+            @debug "Attempting to locate Git object $(string(hash)) in repository from '$url'."
+            try
+                LibGit2.with(LibGit2.GitObject, repo, git_hash) do g
+                    @debug "Git object $(string(hash)) found in '$url'. No need for further fetches."
                 end
                 break # object was found, we can stop
             catch err
-                err isa LibGit2.GitError && err.code == LibGit2.Error.ENOTFOUND || rethrow()
+                if err isa LibGit2.GitError && err.code == LibGit2.Error.ENOTFOUND
+                    @debug "Git object $(string(hash)) not found in '$url'; attempting fetch."
+                    GitTools.fetch(io, repo, url, refspecs=refspecs)
+                else
+                    rethrow()
+                end
             end
-            GitTools.fetch(io, repo, url, refspecs=refspecs)
         end
+
+        # Retrieve the git object now that it should be in the repository
+        @debug "Retrieving git object $(string(hash)) from local repo."
         tree = try
             LibGit2.GitObject(repo, git_hash)
         catch err
-            err isa LibGit2.GitError && err.code == LibGit2.Error.ENOTFOUND || rethrow()
-            error("$name: git object $(string(hash)) could not be found")
+            if err isa LibGit2.GitError && err.code == LibGit2.Error.ENOTFOUND
+                error("$name: git object $(string(hash)) could not be found")
+            else
+                rethrow()
+            end
         end
-        tree isa LibGit2.GitTree ||
+
+        # Ensure the object is a tree
+        if !(tree isa LibGit2.GitTree)
             error("$name: git object $(string(hash)) should be a tree, not $(typeof(tree))")
+        end
+        @debug "Git object $(string(hash)) is a valid GitTree."
+
+        # Create the version path and check out the tree
+        @debug "Creating version path at '$version_path' and checking out the tree."
         mkpath(version_path)
         GitTools.checkout_tree_to_path(repo, tree, version_path)
+
+        @debug "Successfully installed '$name' ($uuid) at '$version_path'."
         return
+
     finally
-        repo !== nothing && LibGit2.close(repo)
-        tree !== nothing && LibGit2.close(tree)
+        # Cleanup resources
+        if repo !== nothing
+            @debug "Closing repository handle."
+            LibGit2.close(repo)
+        end
+        if tree !== nothing
+            @debug "Closing tree object."
+            LibGit2.close(tree)
+        end
+        @debug "Finished install_git for package '$name' ($uuid)."
     end
 end
 
@@ -1132,7 +1179,9 @@ function download_source(ctx::Context; readonly=true)
     ##################################################
     for (pkg, urls, path) in missed_packages
         uuid = pkg.uuid
+        @debug "LibGit2 Downloading package $(pkg.name) from $(urls)"
         install_git(ctx.io, pkg.uuid, pkg.name, pkg.tree_hash, urls, path)
+        @debug "LibGit2 Downloaded package $(pkg.name) from $(urls)"
         readonly && set_readonly(path)
         vstr = if pkg.version !== nothing
             "v$(pkg.version)"
